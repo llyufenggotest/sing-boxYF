@@ -58,6 +58,7 @@ jobs:
       - name: Install sideload loader into Apple client
         run: |
           cp apple/patches/SideloadCompatibilityLoader.swift clients/apple/SFI/SideloadCompatibilityLoader.swift
+          cp apple/patches/SFI.Application.swift clients/apple/SFI/Application.swift
 
           python3 - <<'PY'
           from pathlib import Path
@@ -98,6 +99,15 @@ jobs:
           bash scripts/inject_sideload_dylib.sh "$APP" "ios/SideloadSupport/$DYLIB_NAME"
           test -f "$APP/Frameworks/$DYLIB_NAME"
           test -f "$APP/PlugIns/Extension.appex/Frameworks/$DYLIB_NAME"
+          APP_BINARY="$APP/sing-box"
+          EXT_BINARY="$APP/PlugIns/Extension.appex/Extension"
+          for binary in "$APP_BINARY" "$EXT_BINARY"; do
+            strings "$binary" | grep -F "$DYLIB_NAME"
+            strings "$binary" | grep -F '_dlopen'
+            otool -l "$binary" | grep -A2 LC_RPATH | grep -F '@executable_path/Frameworks'
+          done
+          strings "$APP_BINARY" | grep -F 'SideloadCompatibilityLoader'
+          strings "$APP_BINARY" | grep -F 'ExtensionEnvironments'
           mkdir -p dist/Payload
           cp -R "$APP" dist/Payload/SFI.app
           (cd dist && zip -qry "sing-boxYF-${{ inputs.version }}-unsigned.ipa" Payload)

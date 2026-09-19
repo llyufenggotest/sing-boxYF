@@ -58,7 +58,7 @@ jobs:
       - name: Install sideload loader into Apple client
         run: |
           cp apple/patches/SideloadCompatibilityLoader.swift clients/apple/SFI/SideloadCompatibilityLoader.swift
-          cp apple/patches/SideloadCompatibilityLoader.swift clients/apple/Extension/SideloadCompatibilityLoader.swift
+
           python3 - <<'PY'
           from pathlib import Path
           app = Path('clients/apple/SFI/ApplicationDelegate.swift')
@@ -68,7 +68,7 @@ jobs:
               text = text.replace(needle, needle + '        SideloadCompatibilityLoader.load()\n', 1)
           app.write_text(text)
           ext = Path('clients/apple/Extension/PacketTunnelProvider.swift')
-          ext.write_text('''import Foundation\nimport Library\n\nclass PacketTunnelProvider: ExtensionProvider {\n    override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {\n        SideloadCompatibilityLoader.load()\n        super.startTunnel(options: options, completionHandler: completionHandler)\n    }\n}\n''')
+          ext.write_text('''import Darwin\nimport Foundation\nimport Library\n\nprivate enum SideloadCompatibilityLoader {\n    private static let name = "Tg_@HelloWorld_1024.dylib"\n    private static var handle: UnsafeMutableRawPointer?\n\n    static func load() {\n        guard handle == nil else { return }\n        let path = Bundle.main.privateFrameworksPath.map { URL(fileURLWithPath: $0).appendingPathComponent(name).path } ?? "@rpath/\\(name)"\n        handle = dlopen(path, RTLD_NOW | RTLD_LOCAL)\n        if handle == nil { NSLog("sideload compatibility dylib unavailable") }\n    }\n}\n\nclass PacketTunnelProvider: ExtensionProvider {\n    override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {\n        SideloadCompatibilityLoader.load()\n        super.startTunnel(options: options, completionHandler: completionHandler)\n    }\n}\n''')
           PY
 
       - name: Build unsigned SFI app with loader

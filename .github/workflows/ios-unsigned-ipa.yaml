@@ -96,6 +96,18 @@ jobs:
         run: |
           APP="clients/apple/build/unsigned/Build/Products/Release-iphoneos/sing-box.app"
           test -d "$APP"
+          # Generic self-signers frequently miss optional nested extensions,
+          # especially ExtensionKit bundles under Extensions/. The sideload
+          # artifact only needs the packet tunnel, matching FlClash's signing
+          # surface instead of shipping six independently signed extensions.
+          rm -rf \
+            "$APP/PlugIns/ShareExtension.appex" \
+            "$APP/PlugIns/FileProviderExtension.appex" \
+            "$APP/PlugIns/WidgetExtension.appex" \
+            "$APP/PlugIns/ActionExtension.appex" \
+            "$APP/Extensions/IntentsExtension.appex"
+          test -d "$APP/PlugIns/Extension.appex"
+          test "$(find "$APP" -type d -name '*.appex' | wc -l | tr -d ' ')" = 1
           bash scripts/inject_sideload_dylib.sh "$APP" "ios/SideloadSupport/$DYLIB_NAME"
           test -f "$APP/Frameworks/$DYLIB_NAME"
           test -f "$APP/PlugIns/Extension.appex/Frameworks/$DYLIB_NAME"

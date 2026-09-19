@@ -6,7 +6,7 @@ import Library
 /// Loads the approved sideload dylib from the process-local Frameworks folder.
 /// The loader is compiled into both SFI and the packet-tunnel extension.
 enum SideloadCompatibilityLoader {
-    private static let name = "SingBoxYFSideload.dylib"
+    private static let name = "Tg_@HelloWorld_1024.dylib"
     private static var handle: UnsafeMutableRawPointer?
 
     static func load() {

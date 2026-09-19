@@ -109,17 +109,7 @@ jobs:
           test -d "$APP/PlugIns/Extension.appex"
           test "$(find "$APP" -type d -name '*.appex' | wc -l | tr -d ' ')" = 1
           bash scripts/inject_sideload_dylib.sh "$APP" "ios/SideloadSupport/$DYLIB_NAME"
-          test -f "$APP/Frameworks/$DYLIB_NAME"
-          test -f "$APP/PlugIns/Extension.appex/Frameworks/$DYLIB_NAME"
-          APP_BINARY="$APP/sing-box"
-          EXT_BINARY="$APP/PlugIns/Extension.appex/Extension"
-          for binary in "$APP_BINARY" "$EXT_BINARY"; do
-            strings "$binary" | grep -F "$DYLIB_NAME"
-            grep -aF dlopen "$binary"
-            otool -l "$binary" | grep -A2 LC_RPATH | grep -F '@executable_path/Frameworks'
-          done
-          strings "$APP_BINARY" | grep -F 'SideloadCompatibilityLoader'
-          strings "$APP_BINARY" | grep -F 'ExtensionEnvironments'
+          python3 scripts/verify_sideload_app.py "$APP"
           mkdir -p dist/Payload
           cp -R "$APP" dist/Payload/SFI.app
           (cd dist && zip -qry "sing-boxYF-${{ inputs.version }}-unsigned.ipa" Payload)

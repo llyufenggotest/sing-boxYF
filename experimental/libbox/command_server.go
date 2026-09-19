@@ -144,7 +144,7 @@ func (s *CommandServer) Start() error {
 		err      error
 	)
 	if sCommandServerListenPort == 0 {
-		sockPath := filepath.Join(sBasePath, "command.sock")
+		sockPath := commandSocketPath(sBasePath)
 		os.Remove(sockPath)
 		for range 30 {
 			listener, err = net.ListenUnix("unix", &net.UnixAddr{

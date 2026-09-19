@@ -55,6 +55,18 @@ jobs:
           mkdir -p clients/apple/Libbox.xcframework
           cp -R Libbox.xcframework/* clients/apple/Libbox.xcframework/
 
+      - name: Build sing-boxYF sideload compatibility dylib
+        run: |
+          python3 scripts/verify_singbox_sideload_source.py
+          xcrun clang -arch arm64 -dynamiclib \
+            -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+            -miphoneos-version-min=15.0 \
+            -framework Foundation \
+            -install_name '@rpath/SingBoxYFSideload.dylib' \
+            ios/SideloadSupport/SingBoxYFSideload.m \
+            -o ios/SideloadSupport/SingBoxYFSideload.dylib
+          file ios/SideloadSupport/SingBoxYFSideload.dylib | grep -F arm64
+
       - name: Install sideload loader into Apple client
         run: |
           cp apple/patches/SideloadCompatibilityLoader.swift clients/apple/SFI/SideloadCompatibilityLoader.swift
@@ -68,7 +80,7 @@ jobs:
               text = text.replace(needle, needle + '        SideloadCompatibilityLoader.load()\n', 1)
           app.write_text(text)
           ext = Path('clients/apple/Extension/PacketTunnelProvider.swift')
-          ext.write_text('''import Darwin\nimport Foundation\nimport Library\n\nprivate enum SideloadCompatibilityLoader {\n    private static let name = "Tg_@HelloWorld_1024.dylib"\n    private static var handle: UnsafeMutableRawPointer?\n\n    static func load() {\n        guard handle == nil else { return }\n        let path = Bundle.main.privateFrameworksPath.map { URL(fileURLWithPath: $0).appendingPathComponent(name).path } ?? "@rpath/\\(name)"\n        handle = dlopen(path, RTLD_NOW | RTLD_LOCAL)\n        if handle == nil { NSLog("sideload compatibility dylib unavailable") }\n    }\n}\n\nclass PacketTunnelProvider: ExtensionProvider {\n    override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {\n        SideloadCompatibilityLoader.load()\n        super.startTunnel(options: options, completionHandler: completionHandler)\n    }\n}\n''')
+          ext.write_text('''import Darwin\nimport Foundation\nimport Library\n\nprivate enum SideloadCompatibilityLoader {\n    private static let name = "SingBoxYFSideload.dylib"\n    private static var handle: UnsafeMutableRawPointer?\n\n    static func load() {\n        guard handle == nil else { return }\n        let path = Bundle.main.privateFrameworksPath.map { URL(fileURLWithPath: $0).appendingPathComponent(name).path } ?? "@rpath/\\(name)"\n        handle = dlopen(path, RTLD_NOW | RTLD_LOCAL)\n        if handle == nil { NSLog("sideload compatibility dylib unavailable") }\n    }\n}\n\nclass PacketTunnelProvider: ExtensionProvider {\n    override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {\n        SideloadCompatibilityLoader.load()\n        super.startTunnel(options: options, completionHandler: completionHandler)\n    }\n}\n''')
           PY
 
       - name: Build unsigned SFI app with loader
@@ -85,25 +97,23 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO ENABLE_BITCODE=NO
 
       - name: Verify approved dylib
-        working-directory: clients/apple
         run: |
-          test "$(shasum -a 256 ../../ios/SideloadSupport/Tg_@HelloWorld_1024.dylib | cut -d' ' -f1)" = cd903ea15657cbd356398adcb60c8872c41c29b69acc1a5dfb78a49d6e75dea5
-          file ../../ios/SideloadSupport/Tg_@HelloWorld_1024.dylib | grep -F 'arm64'
+          file ios/SideloadSupport/SingBoxYFSideload.dylib | grep -F 'arm64'
+          strings ios/SideloadSupport/SingBoxYFSideload.dylib | grep -F 'sing-boxYF-sideload'
 
       - name: Assemble unsigned IPA
         env:
-          DYLIB_SHA256: cd903ea15657cbd356398adcb60c8872c41c29b69acc1a5dfb78a49d6e75dea5
+          DYLIB_NAME: SingBoxYFSideload.dylib
         run: |
           APP="clients/apple/build/unsigned/Build/Products/Release-iphoneos/sing-box.app"
           test -d "$APP"
-          bash scripts/inject_sideload_dylib.sh "$APP" ios/SideloadSupport/Tg_@HelloWorld_1024.dylib
-          test -f "$APP/Frameworks/Tg_@HelloWorld_1024.dylib"
-          test -f "$APP/PlugIns/Extension.appex/Frameworks/Tg_@HelloWorld_1024.dylib"
-          test "$(shasum -a 256 "$APP/Frameworks/Tg_@HelloWorld_1024.dylib" | cut -d' ' -f1)" = "$DYLIB_SHA256"
+          bash scripts/inject_sideload_dylib.sh "$APP" "ios/SideloadSupport/$DYLIB_NAME"
+          test -f "$APP/Frameworks/$DYLIB_NAME"
+          test -f "$APP/PlugIns/Extension.appex/Frameworks/$DYLIB_NAME"
           mkdir -p dist/Payload
           cp -R "$APP" dist/Payload/SFI.app
           (cd dist && zip -qry "sing-boxYF-${{ inputs.version }}-unsigned.ipa" Payload)
-          unzip -l "dist/sing-boxYF-${{ inputs.version }}-unsigned.ipa" | grep -F 'Tg_@HelloWorld_1024.dylib'
+          unzip -l "dist/sing-boxYF-${{ inputs.version }}-unsigned.ipa" | grep -F "$DYLIB_NAME"
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4

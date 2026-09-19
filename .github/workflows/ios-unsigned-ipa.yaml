@@ -96,7 +96,7 @@ jobs:
         run: |
           APP="clients/apple/build/unsigned/Build/Products/Release-iphoneos/sing-box.app"
           test -d "$APP"
-          scripts/inject_sideload_dylib.sh "$APP" ios/SideloadSupport/Tg_@HelloWorld_1024.dylib
+          bash scripts/inject_sideload_dylib.sh "$APP" ios/SideloadSupport/Tg_@HelloWorld_1024.dylib
           test -f "$APP/Frameworks/Tg_@HelloWorld_1024.dylib"
           test -f "$APP/PlugIns/Extension.appex/Frameworks/Tg_@HelloWorld_1024.dylib"
           test "$(shasum -a 256 "$APP/Frameworks/Tg_@HelloWorld_1024.dylib" | cut -d' ' -f1)" = "$DYLIB_SHA256"

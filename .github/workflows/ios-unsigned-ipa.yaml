@@ -24,7 +24,7 @@ jobs:
           go-version: 1.26.8
           cache: false
       - name: Test shared command socket path
-        run: go test ./experimental/libbox -run TestCommandSocketPath -count=1
+        run: go test ./experimental/libbox/internal/commandsocket -count=1
 
   build:
     name: Unsigned SFI arm64 IPA

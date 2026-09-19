@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/daemon"
+	"github.com/sagernet/sing-box/experimental/libbox/internal/commandsocket"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing-box/service/powerreport"
@@ -144,7 +145,7 @@ func (s *CommandServer) Start() error {
 		err      error
 	)
 	if sCommandServerListenPort == 0 {
-		sockPath := commandSocketPath(sBasePath)
+		sockPath := commandsocket.Path(sBasePath)
 		os.Remove(sockPath)
 		for range 30 {
 			listener, err = net.ListenUnix("unix", &net.UnixAddr{

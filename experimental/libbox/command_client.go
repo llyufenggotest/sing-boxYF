@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/daemon"
+	"github.com/sagernet/sing-box/experimental/libbox/internal/commandsocket"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 
@@ -125,7 +126,7 @@ func dialTarget() (string, func(context.Context, string) (net.Conn, error)) {
 		}
 	}
 	if sCommandServerListenPort == 0 {
-		socketPath := commandSocketPath(sBasePath)
+		socketPath := commandsocket.Path(sBasePath)
 		return "passthrough:///command-socket", func(ctx context.Context, _ string) (net.Conn, error) {
 			var networkDialer net.Dialer
 			return networkDialer.DialContext(ctx, "unix", socketPath)

@@ -180,8 +180,17 @@ jobs:
       - name: Build Android arm64-v8a APK
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
         run: |
+          keytool -genkeypair -v \
+            -keystore clients/android/app/release.keystore \
+            -storepass singboxyf -keypass singboxyf \
+            -alias singboxyf -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=sing-boxYF, OU=Development, O=sing-boxYF, L=Local, ST=Local, C=US"
+          LOCAL_PROPERTIES="$(printf '%s\n' \
+            'KEYSTORE_PASS=singboxyf' \
+            'ALIAS_NAME=singboxyf' \
+            'ALIAS_PASS=singboxyf' | base64 -w0)"
+          export LOCAL_PROPERTIES
           mkdir -p clients/android/app/libs
           cp libbox.aar libbox-legacy.aar clients/android/app/libs/
           cd clients/android

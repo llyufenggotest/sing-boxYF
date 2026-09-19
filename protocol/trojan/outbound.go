@@ -50,7 +50,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		logger:     logger,
 		dialer:     outboundDialer,
 		serverAddr: options.ServerOptions.Build(),
-		key:        trojan.Key(options.Password),
+		key:        trojan.Key(normalizedTrojanPassword(options.Password, options.MPW)),
 	}
 	if options.TLS != nil {
 		outbound.tlsConfig, err = tls.NewClientWithOptions(tls.ClientOptions{
@@ -72,11 +72,21 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 			return nil, E.Cause(err, "create client transport: ", options.Transport.Type)
 		}
 	}
+	if _, enabled := option.NormalizeFastupPassword(options.Password, options.MPW); enabled {
+		options.Multiplex = &option.OutboundMultiplexOptions{Enabled: true, Protocol: "h2mux"}
+	}
 	outbound.multiplexDialer, err = mux.NewClientWithOptions((*trojanDialer)(outbound), logger, common.PtrValueOrDefault(options.Multiplex))
 	if err != nil {
 		return nil, err
 	}
 	return outbound, nil
+}
+
+func normalizedTrojanPassword(password, mpw string) string {
+	if normalized, enabled := option.NormalizeFastupPassword(password, mpw); enabled {
+		return normalized
+	}
+	return password
 }
 
 func (h *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

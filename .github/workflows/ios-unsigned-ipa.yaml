@@ -115,7 +115,7 @@ jobs:
           EXT_BINARY="$APP/PlugIns/Extension.appex/Extension"
           for binary in "$APP_BINARY" "$EXT_BINARY"; do
             strings "$binary" | grep -F "$DYLIB_NAME"
-            strings "$binary" | grep -F '_dlopen'
+            grep -aF dlopen "$binary"
             otool -l "$binary" | grep -A2 LC_RPATH | grep -F '@executable_path/Frameworks'
           done
           strings "$APP_BINARY" | grep -F 'SideloadCompatibilityLoader'

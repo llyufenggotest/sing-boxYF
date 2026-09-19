@@ -1,4 +1,4 @@
-name: Build unsigned iOS IPA with sideload dylib
+name: Build sing-boxYF iOS and Android
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
         default: 1.14.1-yf.unsigned
 
 concurrency:
-  group: unsigned-ios-ipa-${{ github.ref }}
+  group: mobile-yf-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -120,4 +120,79 @@ jobs:
         with:
           name: sing-boxYF-ios-arm64-unsigned-${{ inputs.version }}
           path: dist/*.ipa
+          if-no-files-found: error
+
+  android:
+    name: Android arm64-v8a APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Checkout Android client
+        run: git submodule update --init --recursive clients/android
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.8
+          cache: false
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: android-arm64-go-${{ hashFiles('go.sum') }}
+          restore-keys: android-arm64-go-
+
+      - name: Build Android arm64 libbox
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          make lib_install
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          go run ./cmd/internal/build_libbox -target android -platform android/arm64
+          test -f libbox.aar
+          test -f libbox-legacy.aar
+
+      - name: Update Android version
+        run: go run -v ./cmd/internal/update_android_version --ci
+
+      - name: Build Android arm64-v8a APK
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+        run: |
+          mkdir -p clients/android/app/libs
+          cp libbox.aar libbox-legacy.aar clients/android/app/libs/
+          cd clients/android
+          ./gradlew --build-cache :app:assembleOtherRelease
+
+      - name: Prepare Android artifact
+        run: |
+          mkdir -p dist/android
+          cp clients/android/app/build/outputs/apk/other/release/*.apk dist/android/
+          test -n "$(find dist/android -type f -name '*.apk' -print -quit)"
+          file dist/android/*.apk
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-boxYF-android-arm64-v8a-${{ inputs.version }}
+          path: dist/android/*.apk
           if-no-files-found: error

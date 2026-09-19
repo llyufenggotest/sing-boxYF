@@ -55,25 +55,10 @@ jobs:
           mkdir -p clients/apple/Libbox.xcframework
           cp -R Libbox.xcframework/* clients/apple/Libbox.xcframework/
 
-      - name: Build unsigned SFI app
-        working-directory: clients/apple
-        env:
-          XCODEBUILD_CLONED_SOURCE_PACKAGES_DIR_PATH: ${{ runner.temp }}/SourcePackages
-        run: |
-          xcodebuild build \
-            -clonedSourcePackagesDirPath "$XCODEBUILD_CLONED_SOURCE_PACKAGES_DIR_PATH" \
-            -scheme SFI \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath build/unsigned \
-            BASE_PACKAGE_IDENTIFIER=io.llyufenggotest.singboxyf \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            ENABLE_BITCODE=NO
-
       - name: Install sideload loader into Apple client
         run: |
-          cp apple/patches/SideloadCompatibilityLoader.swift clients/apple/Library/Shared/SideloadCompatibilityLoader.swift
+          cp apple/patches/SideloadCompatibilityLoader.swift clients/apple/SFI/SideloadCompatibilityLoader.swift
+          cp apple/patches/SideloadCompatibilityLoader.swift clients/apple/Extension/SideloadCompatibilityLoader.swift
           python3 - <<'PY'
           from pathlib import Path
           app = Path('clients/apple/SFI/ApplicationDelegate.swift')
@@ -86,7 +71,7 @@ jobs:
           ext.write_text('''import Foundation\nimport Library\n\nclass PacketTunnelProvider: ExtensionProvider {\n    override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {\n        SideloadCompatibilityLoader.load()\n        super.startTunnel(options: options, completionHandler: completionHandler)\n    }\n}\n''')
           PY
 
-      - name: Rebuild unsigned SFI app with loader
+      - name: Build unsigned SFI app with loader
         working-directory: clients/apple
         env:
           XCODEBUILD_CLONED_SOURCE_PACKAGES_DIR_PATH: ${{ runner.temp }}/SourcePackages

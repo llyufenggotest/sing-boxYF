@@ -181,6 +181,7 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
+          rm -f clients/android/app/release.keystore
           keytool -genkeypair -v \
             -keystore clients/android/app/release.keystore \
             -storepass singboxyf -keypass singboxyf \
